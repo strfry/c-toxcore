@@ -142,8 +142,8 @@ int32_t encrypt_data_symmetric(const uint8_t *secret_key, const uint8_t *nonce,
         return -1;
     }
 
-    uint8_t *temp_plain = (*uint8_t) calloc(1, length + crypto_box_ZEROBYTES);
-    uint8_t *temp_encrypted = (*uint8_t) calloc(1, length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
+    uint8_t *temp_plain = (uint8_t *) calloc(1, length + crypto_box_ZEROBYTES);
+    uint8_t *temp_encrypted = (uint8_t *) calloc(1, length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
 
     memset(temp_plain, 0, crypto_box_ZEROBYTES);
     // Pad the message with 32 0 bytes.
