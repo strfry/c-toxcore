@@ -39,11 +39,14 @@
 #include <vpx/vp8dx.h>
 // for VPX ----------
 
-// for H264 ----------
+#ifdef BUILD_X264
 #include <x264.h>
+#endif
+
+// ffmpeg  ----------
 #include <libavcodec/avcodec.h>
 #include <libavutil/common.h>
-// for H264 ----------
+// ffmpeg  ----------
 
 #define USE_TS_BUFFER_FOR_VIDEO   1
 
