@@ -28,11 +28,10 @@ libtoxav_la_SOURCES = ../toxav/rtp.h \
 if ON_RASPI
 
 libtoxav_la_SOURCES += ../toxav/codecs/h264_omx_raspi/codec.c
+endif
 
-else
-
-libtoxav_la_SOURCES += ../toxav/codecs/h264/codec.c
-
+if USE_X264
+libtoxav_la_SOURCES += ../toxav/codecs/h264/x264.c
 endif
 
 libtoxav_la_CFLAGS = -I../toxcore \

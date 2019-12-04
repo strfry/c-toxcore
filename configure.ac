@@ -20,10 +20,26 @@ BUILD_DHT_BOOTSTRAP_DAEMON="no"
 BUILD_DHT_BOOTSTRAP="no"
 BUILD_TESTS="yes"
 BUILD_AV="yes"
+BUILD_AV_TESTS="yes"
+
+#???
 BUILD_TESTING="yes"
 
 ON_RASPI="no"
 TOX_LOGGER="no"
+# optional video codecs
+USE_X264="no"
+AC_ARG_ENABLE([x264],
+    [AC_HELP_STRING([--enable-x264], [use x264 video encoder (WARNING: do not enable without a H.264 patent license)]) ],
+    [
+        if test "x$enableval" = "xno"; then
+            USE_X264="no"
+        elif test "x$enableval" = "xyes"; then
+            USE_X264="yes"
+        fi
+    ]
+)
+
 
 NCURSES_FOUND="no"
 LIBCONFIG_FOUND="no"
@@ -485,36 +501,6 @@ AC_CHECK_LIB([pthread], [pthread_self],
     ]
 )
 
-#if test "x$BUILD_AV" = "xyes"; then
-#    PKG_CHECK_MODULES([OPENH264], [openh264],
-#        [],
-#        [
-#            AC_MSG_WARN([disabling AV support $OPENH264_PKG_ERRORS])
-#            BUILD_AV="no"
-#        ]
-#    )
-#fi
-
-if test "x$BUILD_AV" = "xyes"; then
-    PKG_CHECK_MODULES([LIBAVCODEC], [libavcodec],
-        [],
-        [
-            AC_MSG_WARN([disabling AV support $LIBAVCODEC_PKG_ERRORS])
-            BUILD_AV="no"
-        ]
-    )
-fi
-
-if test "x$BUILD_AV" = "xyes"; then
-    PKG_CHECK_MODULES([X264], [x264],
-        [],
-        [
-            AC_MSG_WARN([disabling AV support $X264_PKG_ERRORS])
-            BUILD_AV="no"
-        ]
-    )
-fi
-
 if test "x$BUILD_AV" = "xyes"; then
     PKG_CHECK_MODULES([OPUS], [opus],
         [],
@@ -534,14 +520,23 @@ if test "x$BUILD_AV" = "xyes"; then
         ]
     )
 fi
+if test "x$USE_X264" = "xyes"; then
+    PKG_CHECK_MODULES([X264], [x264],
+        [],
+        [
+            AC_MSG_WARN([enabling H264 software support (private use only) $X264_PKG_ERRORS])
+            USE_X264="yes"
+        ]
+    )
+fi
 
 if test "x$BUILD_AV" = "xyes"; then
     # toxcore lib needs an global?
     # So far this works okay
-    AV_LIBS="$OPUS_LIBS $VPX_LIBS $LIBAVCODEC_LIBS $X264_LIBS"
+    AV_LIBS="$OPUS_LIBS $VPX_LIBS"
     AC_SUBST(AV_LIBS)
 
-    AV_CFLAGS="$OPUS_CFLAGS $VPX_CFLAGS $LIBAVCODEC_CFLAGS $X264_CFLAGS"
+    AV_CFLAGS="$OPUS_CFLAGS $VPX_CFLAGS"
     AC_SUBST(AV_CFLAGS)
 fi
 
@@ -599,6 +594,7 @@ AM_CONDITIONAL(BUILD_DHT_BOOTSTRAP, test "x$BUILD_DHT_BOOTSTRAP" = "xyes")
 AM_CONDITIONAL(BUILD_TESTS, test "x$BUILD_TESTS" = "xyes")
 AM_CONDITIONAL(BUILD_AV, test "x$BUILD_AV" = "xyes")
 AM_CONDITIONAL(ON_RASPI, test "x$ON_RASPI" = "xyes")
+AM_CONDITIONAL(USE_X264, test "x$USE_X264" = "xyes")
 AM_CONDITIONAL(BUILD_TESTING, test "x$BUILD_TESTING" = "xyes")
 AM_CONDITIONAL(WITH_NACL, test "x$WANT_NACL" = "xyes")
 AM_CONDITIONAL(WIN32, test "x$WIN32" = "xyes")
