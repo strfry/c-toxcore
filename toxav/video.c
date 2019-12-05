@@ -604,9 +604,11 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
                 LOGGER_DEBUG(vc->log, "missing %d video frames (m1)", (int)missing_frames_count);
 #endif
 
+#ifdef HAS_H264
                 if (vc->video_decoder_codec_used != TOXAV_ENCODER_CODEC_USED_H264) {
                     rc = vpx_codec_decode(vc->decoder, NULL, 0, NULL, VPX_DL_REALTIME);
                 }
+#endif // HAS_H264
 
                 // HINT: give feedback that we lost some bytes (based on the size of this frame)
                 bwc_add_lost_v3(bwc, (uint32_t)(header_v3_0->data_length_full * missing_frames_count), true);
@@ -628,9 +630,14 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
                 free(p);
                 LOGGER_ERROR(vc->log, "skipping incoming video frame (1)");
 
+#ifdef HAS_H264
                 if (vc->video_decoder_codec_used != TOXAV_ENCODER_CODEC_USED_H264) {
+#endif // HAS_H264
                     rc = vpx_codec_decode(vc->decoder, NULL, 0, NULL, VPX_DL_REALTIME);
+#ifdef HAS_H264
                 }
+#endif
+
 
                 // HINT: give feedback that we lost some bytes (based on the size of this frame)
                 bwc_add_lost_v3(bwc, header_v3_0->data_length_full, false);

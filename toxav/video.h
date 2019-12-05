@@ -153,33 +153,48 @@ typedef enum PACKET_TOXAV_COMM_CHANNEL_FUNCTION {
 
 struct TSBuffer;
 
-
 struct OMXContext;
 
 typedef struct VCSession_s {
     /* encoding */
     vpx_codec_ctx_t encoder[1];
     uint32_t frame_counter;
-    x264_t *h264_encoder;
-    x264_picture_t h264_in_pic;
-    x264_picture_t h264_out_pic;
+
+#if USE_X264
+    struct x264 {
+        x264_t *h264_encoder;
+        x264_picture_t h264_in_pic;
+        x264_picture_t h264_out_pic;
+
+    };
+    encoder_t *h264_encoder;
     int h264_enc_width;
     int h264_enc_height;
     uint32_t h264_enc_bitrate;
+#endif // USE_X264
 
+#ifdef USE_FFMPEG
 // ------ ffmpeg encoder ------
     AVCodecContext *h264_encoder2;
     AVPacket *h264_out_pic2;
 // ------ ffmpeg encoder ------
 
+// ------ ffmpeg decoder ------
+    AVCodecContext *h264_decoder;
+// ------ ffmpeg decoder ------
+#endif
 
 #ifdef RASPBERRY_PI_OMX
     struct OMXContext *omx_ctx;
 #endif
 
+// vpx still is default/fallback (iff. toxav is enabled)
+// #ifdef USE_VPX
     /* decoding */
     vpx_codec_ctx_t decoder[1];
-    AVCodecContext *h264_decoder;
+// #endif
+
+//? TimeStamp Buffer ?//
 #ifdef USE_TS_BUFFER_FOR_VIDEO
     struct TSBuffer *vbuf_raw; /* Un-decoded data */
 #else

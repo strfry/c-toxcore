@@ -47,9 +47,33 @@ struct vpx_frame_user_data {
 };
 // ----------- COMMON STUFF -----------
 
+// (c) 2019 x264 Project
+/* The data within the payload is already NAL-encapsulated; the ref_idc and type
+ * are merely in the struct for easy access by the calling application.
+ * All data returned in an x264_nal_t, including the data in p_payload, is no longer
+ * valid after the next call to x264_encoder_encode.  Thus it must be used or copied
+ * before calling x264_encoder_encode or x264_encoder_headers again. */
+typedef struct
+{
+    int i_ref_idc;  /* nal_priority_e */
+    int i_type;     /* nal_unit_type_e */
+    int b_long_startcode;
+    int i_first_mb; /* If this NAL is a slice, the index of the first MB in the slice. */
+    int i_last_mb;  /* If this NAL is a slice, the index of the last MB in the slice. */
+
+    /* Size of payload (including any padding) in bytes. */
+    int     i_payload;
+    /* If param->b_annexb is set, Annex-B bytestream with startcode.
+     * Otherwise, startcode is replaced with a 4-byte size.
+     * This size is the size used in mp4/similar muxing; it is equal to i_payload-4 */
+    uint8_t *p_payload;
+
+    /* Size of padding in bytes. */
+    int i_padding;
+} h264_nal_t;
 
 
-
+typedef h264_nal_t x264_nal_t; // HACK
 
 // ----------- VPX  -----------
 VCSession *vc_new_vpx(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
