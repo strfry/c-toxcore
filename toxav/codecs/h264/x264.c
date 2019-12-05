@@ -968,6 +968,7 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
     return 0;
 }
 
+//!!!
 void get_info_from_sps(const Messenger *m, VCSession *vc, const Logger *log,
                        const uint8_t data[], const uint32_t data_len)
 {
