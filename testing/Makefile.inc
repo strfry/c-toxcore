@@ -47,4 +47,27 @@ Messenger_test_LDADD =  $(LIBSODIUM_LDFLAGS) \
                         $(NACL_LIBS) \
                         $(WINSOCK2_LIBS)
 
+if BUILD_AV_TESTING
+
+noinst_PROGRAMS +=      av_test
+
+av_test_SOURCES =       ../testing/av_test.c
+
+av_test_CFLAGS = $(LIBSODIUM_CFLAGS) \
+                        $(NACL_CFLAGS) \
+                        $(PORTAUDIO_CFLAGS) \
+                        $(SNDFILE_CFLAGS)
+
+av_test_LDADD =  $(LIBSODIUM_LDFLAGS) \
+                        $(NACL_LDFLAGS) \
+                        libmisc_tools.la \
+                        libtoxcore.la \
+                        $(LIBSODIUM_LIBS) \
+                        $(NACL_OBJECTS) \
+                        $(NACL_LIBS) \
+                        $(WINSOCK2_LIBS) \
+                        $(SNDFILE_LIBS) \
+                        $(PORTAUDIO_LIBS)
+endif
+
 endif

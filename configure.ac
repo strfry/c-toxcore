@@ -20,7 +20,7 @@ BUILD_DHT_BOOTSTRAP_DAEMON="no"
 BUILD_DHT_BOOTSTRAP="no"
 BUILD_TESTS="yes"
 BUILD_AV="yes"
-BUILD_AV_TESTS="yes"
+BUILD_AV_TESTING="yes"
 
 #???
 BUILD_TESTING="yes"
@@ -538,6 +538,26 @@ if test "x$BUILD_AV" = "xyes"; then
 
     AV_CFLAGS="$OPUS_CFLAGS $VPX_CFLAGS"
     AC_SUBST(AV_CFLAGS)
+    if test "x$BUILD_TESTING" = "xyes"; then
+        if test "x$BUILD_AV" = "xyes"; then
+            PKG_CHECK_MODULES([PORTAUDIO], [portaudio-2.0],
+                [],
+                [
+                    AC_MSG_WARN([disabling AV testing $PORTAUDIO_PKG_ERRORS])
+                    BUILD_AV_TESTING="no"
+                ]
+            )
+            PKG_CHECK_MODULES([SNDFILE], [sndfile],
+                [],
+                [
+                    AC_MSG_WARN([disabling AV testing $SNDFILE_PKG_ERRORS])
+                    BUILD_AV_TESTING="no"
+                ]
+            )
+        fi
+        AV_TESTING_LIBS="$PORTAUDIO_LIBS $SNDFILE_LIBS"
+        AC_SUBST(AV_TESTING_LIBS)
+    fi
 fi
 
 if test -n "$PKG_CONFIG"; then
@@ -596,6 +616,7 @@ AM_CONDITIONAL(BUILD_AV, test "x$BUILD_AV" = "xyes")
 AM_CONDITIONAL(ON_RASPI, test "x$ON_RASPI" = "xyes")
 AM_CONDITIONAL(USE_X264, test "x$USE_X264" = "xyes")
 AM_CONDITIONAL(BUILD_TESTING, test "x$BUILD_TESTING" = "xyes")
+AM_CONDITIONAL(BUILD_AV_TESTING, test "x$BUILD_AV_TESTING" = "xyes")
 AM_CONDITIONAL(WITH_NACL, test "x$WANT_NACL" = "xyes")
 AM_CONDITIONAL(WIN32, test "x$WIN32" = "xyes")
 
