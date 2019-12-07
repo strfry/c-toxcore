@@ -17,6 +17,7 @@
  * along with Tox.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
 #include <x264.h>
 
 #include "../../audio.h"
@@ -28,10 +29,18 @@
 #include "../../../toxcore/mono_time.h"
 #include "../toxav_codecs.h"
 
+#if 0
 // for H264 ----------
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 // for H264 ----------
+#endif
+
+struct x264_encoder_t {
+        x264_t *h264_encoder;
+        x264_picture_t in_pic;
+        x264_picture_t out_pic;
+};
 
 
 int global_h264_enc_profile_high_enabled = 0;
@@ -55,9 +64,6 @@ int global_h264_enc_profile_high_enabled_switch = 0;
 #define X264_ENCODE_USED 1
 // #define RAPI_HWACCEL_ENC 1
 // #define RAPI_HWACCEL_DEC 1
-/* !!multithreaded H264 decoding adds about 80ms of delay!! (0 .. disable, 1 .. disable also?) */
-#define H264_DECODER_THREADS 4
-#define H264_DECODER_THREAD_FRAME_ACTIVE 1
 /* multithreaded encoding seems to add less delay (0 .. disable) */
 #define X264_ENCODER_THREADS 4
 #define X264_ENCODER_SLICES 4
@@ -131,14 +137,12 @@ void my_log_callback(void *ptr, int level, const char *fmt, va_list vargs)
     LOGGER_WARNING(global__log, fmt, vargs);
 }
 
-VCSession *vc_new_h264(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
+VCSession *vc_new_x264_encoder(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
                        VCSession *vc)
 {
     // ENCODER -------
 
     LOGGER_WARNING(log, "HW CODEC CONFIG ACTIVE: %s", ACTIVE_HW_CODEC_CONFIG_NAME);
-
-#ifdef X264_ENCODE_USED
 
     x264_param_t param;
 
@@ -226,266 +230,19 @@ VCSession *vc_new_h264(Logger *log, ToxAV *av, uint32_t friend_number, toxav_vid
         }
     }
 
-    if (x264_picture_alloc(&(vc->h264_in_pic), param.i_csp, param.i_width, param.i_height) < 0) {
+    if (x264_picture_alloc(&(vc->x264_encoder->in_pic), param.i_csp, param.i_width, param.i_height) < 0) {
         // goto fail;
     }
 
-    // vc->h264_in_pic.img.plane[0] --> Y
-    // vc->h264_in_pic.img.plane[1] --> U
-    // vc->h264_in_pic.img.plane[2] --> V
+    // vc->x264_encoder->in_pic.img.plane[0] --> Y
+    // vc->x264_encoder->in_pic.img.plane[1] --> U
+    // vc->x264_encoder->in_pic.img.plane[2] --> V
 
-    vc->h264_encoder = x264_encoder_open(&param);
-
-#else
-
-    vc->h264_encoder = NULL;
-
-// ------ ffmpeg encoder ------
-    AVCodec *codec2 = NULL;
-    vc->h264_encoder2 = NULL;
-
-    // avcodec_register_all();
-
-    codec2 = NULL;
-
-#ifdef RAPI_HWACCEL_ENC
-    codec2 = avcodec_find_encoder_by_name(H264_WANT_ENCODER_NAME);
-
-    if (!codec2) {
-        LOGGER_WARNING(log, "codec not found HW Accel H264 on encoder, trying software decoder ...");
-        codec2 = avcodec_find_encoder_by_name("libx264");
-    } else {
-        LOGGER_ERROR(log, "FOUND: *HW Accel* H264 encoder: %s", H264_WANT_ENCODER_NAME);
-    }
-
-#else
-    codec2 = avcodec_find_encoder_by_name("libx264");
-#endif
-
-    vc->h264_encoder2 = avcodec_alloc_context3(codec2);
-
-    vc->h264_out_pic2 = av_packet_alloc();
-
-    // -- set inital value for H264 encoder profile --
-    global_h264_enc_profile_high_enabled = H264_ENCODER_STARTWITH_PROFILE_HIGH;
-    // -- set inital value for H264 encoder profile --
-
-    if (global_h264_enc_profile_high_enabled == 1) {
-        av_opt_set(vc->h264_encoder2->priv_data, "profile", "high", 0);
-        vc->h264_encoder2->profile               = FF_PROFILE_H264_HIGH; // FF_PROFILE_H264_HIGH;
-        // av_opt_set(vc->h264_encoder2->priv_data, "level", "4.0", AV_OPT_SEARCH_CHILDREN);
-        // vc->h264_encoder2->level = 40; // 4.0
-    } else {
-        av_opt_set(vc->h264_encoder2->priv_data, "profile", "baseline", 0);
-        vc->h264_encoder2->profile               = FF_PROFILE_H264_BASELINE; // FF_PROFILE_H264_HIGH;
-        // av_opt_set(vc->h264_encoder2->priv_data, "level", "4.0", AV_OPT_SEARCH_CHILDREN);
-        // vc->h264_encoder2->level = 40; // 4.0
-    }
-
-#if 0
-    //print
-    char *val_str = (char *)av_malloc(20000);
-    av_opt_get(vc->h264_encoder2->priv_data, "preset", 0, (uint8_t **)&val_str);
-    LOGGER_ERROR(log, "preset val: %s", val_str);
-    av_opt_get(vc->h264_encoder2->priv_data, "tune", 0, (uint8_t **)&val_str);
-    LOGGER_ERROR(log, "tune val: %s", val_str);
-    av_opt_get(vc->h264_encoder2->priv_data, "profile", 0, (uint8_t **)&val_str);
-    LOGGER_ERROR(log, "profile val: %s", val_str);
-    av_opt_get(vc->h264_encoder2->priv_data, "level", 0, (uint8_t **)&val_str);
-    LOGGER_ERROR(log, "level val: %s", val_str);
-    av_free(val_str);
-#endif
-
-    av_opt_set(vc->h264_encoder2->priv_data, "annex_b", "1", 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "repeat_headers", "1", 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "tune", "zerolatency", 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "b", "100000", 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "bitrate", "100000", 0);
-    // av_opt_set_int(vc->h264_encoder2->priv_data, "minrate", 100000, 0);
-    // av_opt_set_int(vc->h264_encoder2->priv_data, "maxrate", (int)((float)100000 * H264_ENCODE_MAX_BITRATE_OVER_ALLOW), 0);
-
-    av_opt_set_int(vc->h264_encoder2->priv_data, "cbr", true, 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "rc", "cbr", 0);
-    av_opt_set_int(vc->h264_encoder2->priv_data, "delay", 0, 0);
-    // av_opt_set_int(vc->h264_encoder2->priv_data, "rc-lookahead", 0, 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "preset", "llhp", 0);
-    av_opt_set_int(vc->h264_encoder2->priv_data, "bf", 0, 0);
-    av_opt_set_int(vc->h264_encoder2->priv_data, "qmin", 3, 0);
-    av_opt_set_int(vc->h264_encoder2->priv_data, "qmax", 51, 0);
-    av_opt_set(vc->h264_encoder2->priv_data, "forced-idr", "true", 0);
-    av_opt_set_int(vc->h264_encoder2->priv_data, "zerolatency", 1, AV_OPT_SEARCH_CHILDREN);
-    //y// av_opt_set_int(vc->h264_encoder2->priv_data, "refs", 0, 0);
-
-    av_opt_set_int(vc->h264_encoder2->priv_data, "threads", X264_ENCODER_THREADS, 0);
-
-    if (X264_ENCODER_SLICES > 0) {
-        av_opt_set(vc->h264_encoder2->priv_data, "sliced_threads", "1", 0);
-    } else {
-        av_opt_set(vc->h264_encoder2->priv_data, "sliced_threads", "0", 0);
-    }
-
-    av_opt_set_int(vc->h264_encoder2->priv_data, "slice_count", X264_ENCODER_SLICES, 0);
-
-    /* put sample parameters */
-    vc->h264_encoder2->bit_rate = 100 * 1000;
-    vc->h264_enc_bitrate = 100 * 1000;
-
-    /* resolution must be a multiple of two */
-    vc->h264_encoder2->width = 1920;
-    vc->h264_encoder2->height = 1080;
-
-    vc->h264_enc_width = vc->h264_encoder2->width;
-    vc->h264_enc_height = vc->h264_encoder2->height;
-
-    vc->h264_encoder2->gop_size = VIDEO_MAX_KF_H264;
-    // vc->h264_encoder2->keyint_min = VIDEO_MAX_KF_H264;
-    vc->h264_encoder2->max_b_frames = 0;
-    vc->h264_encoder2->pix_fmt = AV_PIX_FMT_YUV420P;
-
-    vc->h264_encoder2->time_base.num = 1;
-    vc->h264_encoder2->time_base.den = 1000;
-
-    // without these it won't work !! ---------------------
-    vc->h264_encoder2->time_base = (AVRational) {
-        40, 1000
-    };
-    vc->h264_encoder2->framerate = (AVRational) {
-        1000, 40
-    };
-    // without these it won't work !! ---------------------
-
-    // vc->h264_encoder2->flags2 |= AV_CODEC_FLAG2_LOCAL_HEADER;
-    // vc->h264_encoder2->flags2 |= AV_CODEC_FLAG2_FAST;
-
-    AVDictionary *opts = NULL;
-
-    if (avcodec_open2(vc->h264_encoder2, codec2, &opts) < 0) {
-        LOGGER_ERROR(log, "could not open codec H264 on encoder");
-    }
-
-    av_dict_free(&opts);
-
-
-// ------ ffmpeg encoder ------
-
-#endif
-
-
-
-//    goto good;
-
-//fail:
-//    vc->h264_encoder = NULL;
-
-//good:
-
-    // ENCODER -------
-
-
-    // DECODER -------
-    AVCodec *codec = NULL;
-    vc->h264_decoder = NULL;
-
-    // avcodec_register_all();
-
-    codec = NULL;
-
-#ifdef RAPI_HWACCEL_DEC
-
-    codec = avcodec_find_decoder_by_name(H264_WANT_DECODER_NAME);
-
-    if (!codec) {
-        LOGGER_WARNING(log, "codec not found HW Accel H264 on decoder, trying software decoder ...");
-        codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    } else {
-        LOGGER_WARNING(log, "FOUND: *HW Accel* H264 on decoder");
-    }
-
-#else
-    codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-#endif
-
-
-    if (!codec) {
-        LOGGER_WARNING(log, "codec not found H264 on decoder");
-    }
-
-    vc->h264_decoder = avcodec_alloc_context3(codec);
-
-    if (codec)
-    {
-        if (codec->capabilities & AV_CODEC_CAP_TRUNCATED) {
-            vc->h264_decoder->flags |= AV_CODEC_FLAG_TRUNCATED; /* we do not send complete frames */
-        }
-
-        if (codec->capabilities & AV_CODEC_FLAG_LOW_DELAY) {
-            vc->h264_decoder->flags |= AV_CODEC_FLAG_LOW_DELAY;
-        }
-
-        // vc->h264_decoder->flags |= AV_CODEC_FLAG_OUTPUT_CORRUPT;
-        vc->h264_decoder->flags |= AV_CODEC_FLAG2_SHOW_ALL;
-        // vc->h264_decoder->flags2 |= AV_CODEC_FLAG2_FAST;
-        // vc->h264_decoder->flags |= AV_CODEC_FLAG_TRUNCATED;
-        // vc->h264_decoder->flags2 |= AV_CODEC_FLAG2_CHUNKS;
-
-        if (H264_DECODER_THREADS > 0) {
-            if (codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
-                vc->h264_decoder->thread_count = H264_DECODER_THREADS;
-                vc->h264_decoder->thread_type = FF_THREAD_SLICE;
-                vc->h264_decoder->active_thread_type = FF_THREAD_SLICE;
-            }
-
-            if (H264_DECODER_THREAD_FRAME_ACTIVE == 1) {
-                if (codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
-                    vc->h264_decoder->thread_count = H264_DECODER_THREADS;
-                    vc->h264_decoder->thread_type |= FF_THREAD_FRAME;
-                    vc->h264_decoder->active_thread_type |= FF_THREAD_FRAME;
-                }
-            }
-        }
-
-    #if (defined (HW_CODEC_CONFIG_RPI3_TBW_TV) || defined (HW_CODEC_CONFIG_RPI3_TBW_BIDI)) && defined (RAPI_HWACCEL_DEC)
-        LOGGER_WARNING(log, "setting up h264_mmal decoder ...");
-        av_opt_set_int(vc->h264_decoder->priv_data, "extra_buffers)", 20, AV_OPT_SEARCH_CHILDREN);
-        av_opt_set_int(vc->h264_decoder->priv_data, "extra_decoder_buffers)", 20, AV_OPT_SEARCH_CHILDREN);
-        LOGGER_WARNING(log, "extra_buffers, extra_decoder_buffers");
-    #endif
-
-
-        vc->h264_decoder->refcounted_frames = 0;
-        /*   When AVCodecContext.refcounted_frames is set to 0, the returned
-        *             reference belongs to the decoder and is valid only until the
-        *             next call to this function or until closing or flushing the
-        *             decoder. The caller may not write to it.
-        */
-
-        vc->h264_decoder->delay = 0;
-        av_opt_set_int(vc->h264_decoder->priv_data, "delay", 0, AV_OPT_SEARCH_CHILDREN);
-
-        vc->h264_decoder->time_base = (AVRational) {
-            40, 1000
-        };
-        vc->h264_decoder->framerate = (AVRational) {
-            1000, 40
-        };
-
-        if (avcodec_open2(vc->h264_decoder, codec, NULL) < 0) {
-            LOGGER_WARNING(log, "could not open codec H264 on decoder");
-        }
-
-        vc->h264_decoder->refcounted_frames = 0;
-        /*   When AVCodecContext.refcounted_frames is set to 0, the returned
-        *             reference belongs to the decoder and is valid only until the
-        *             next call to this function or until closing or flushing the
-        *             decoder. The caller may not write to it.
-        */
-    }
-
-
-    // DECODER -------
+    vc->x264_encoder = x264_encoder_open(&param);
 
     return vc;
 }
+
 
 int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
                                 uint16_t width, uint16_t height,
@@ -509,10 +266,10 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
             (kf_max_dist != -2)) {
         // only bit rate changed
 
-        if (vc->h264_encoder) {
+        if (vc->x264_encoder) {
 
             x264_param_t param;
-            x264_encoder_parameters(vc->h264_encoder, &param);
+            x264_encoder_parameters(vc->x264_encoder, &param);
 
             LOGGER_DEBUG(log, "vc_reconfigure_encoder_h264:vb=%d [bitrate only]", (int)(bit_rate / 1000));
 
@@ -523,17 +280,17 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
             // param.rc.i_bitrate = (bit_rate / 1000) * VIDEO_BITRATE_FACTOR_H264;
             vc->h264_enc_bitrate = bit_rate;
 
-            int res = x264_encoder_reconfig(vc->h264_encoder, &param);
+            int res = x264_encoder_reconfig(vc->x264_encoder, &param);
         } else {
 
 #ifndef X264_ENCODE_USED
-            vc->h264_encoder2->bit_rate = bit_rate;
+            vc->libavcodec_encoder->bit_rate = bit_rate;
             vc->h264_enc_bitrate = bit_rate;
 
-            av_opt_set_int(vc->h264_encoder2->priv_data, "b", bit_rate, 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "bitrate", bit_rate, 0);
-            // av_opt_set_int(vc->h264_encoder2->priv_data, "minrate", bit_rate, 0);
-            // av_opt_set_int(vc->h264_encoder2->priv_data, "maxrate", (int)((float)bit_rate * H264_ENCODE_MAX_BITRATE_OVER_ALLOW), 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "b", bit_rate, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "bitrate", bit_rate, 0);
+            // av_opt_set_int(vc->libavcodec_encoder->priv_data, "minrate", bit_rate, 0);
+            // av_opt_set_int(vc->libavcodec_encoder->priv_data, "maxrate", (int)((float)bit_rate * H264_ENCODE_MAX_BITRATE_OVER_ALLOW), 0);
 #endif
 
         }
@@ -551,7 +308,7 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
 
 #ifdef X264_ENCODE_USED
 
-            if (vc->h264_encoder) {
+            if (vc->x264_encoder) {
 
                 x264_param_t param;
 
@@ -647,16 +404,16 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
                              (int)bit_rate);
 
                 // free old stuff ---------
-                x264_encoder_close(vc->h264_encoder);
-                x264_picture_clean(&(vc->h264_in_pic));
+                x264_encoder_close(vc->x264_encoder);
+                x264_picture_clean(&(vc->x264_encoder->in_pic));
                 // free old stuff ---------
 
                 // alloc with new values -------
-                if (x264_picture_alloc(&(vc->h264_in_pic), param.i_csp, param.i_width, param.i_height) < 0) {
+                if (x264_picture_alloc(&(vc->x264_encoder->in_pic), param.i_csp, param.i_width, param.i_height) < 0) {
                     // goto fail;
                 }
 
-                vc->h264_encoder = x264_encoder_open(&param);
+                vc->x264_encoder = x264_encoder_open(&param);
                 // alloc with new values -------
 
                 vc->video_rc_max_quantizer_prev = vc->video_rc_max_quantizer;
@@ -667,11 +424,11 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
 #else
 
             // --- ffmpeg encoder ---
-            avcodec_free_context(&vc->h264_encoder2);
+            avcodec_free_context(&vc->libavcodec_encoder);
 
 
             AVCodec *codec2 = NULL;
-            vc->h264_encoder2 = NULL;
+            vc->libavcodec_encoder = NULL;
 
             // avcodec_register_all();
 
@@ -691,77 +448,77 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
             codec2 = avcodec_find_encoder_by_name("libx264");
 #endif
 
-            vc->h264_encoder2 = avcodec_alloc_context3(codec2);
+            vc->libavcodec_encoder = avcodec_alloc_context3(codec2);
 
             if (global_h264_enc_profile_high_enabled == 1) {
-                av_opt_set(vc->h264_encoder2->priv_data, "profile", "high", 0);
-                vc->h264_encoder2->profile               = FF_PROFILE_H264_HIGH; // FF_PROFILE_H264_HIGH;
-                // av_opt_set(vc->h264_encoder2->priv_data, "level", "4.0", AV_OPT_SEARCH_CHILDREN);
-                // vc->h264_encoder2->level = 40; // 4.0
+                av_opt_set(vc->libavcodec_encoder->priv_data, "profile", "high", 0);
+                vc->libavcodec_encoder->profile               = FF_PROFILE_H264_HIGH; // FF_PROFILE_H264_HIGH;
+                // av_opt_set(vc->libavcodec_encoder->priv_data, "level", "4.0", AV_OPT_SEARCH_CHILDREN);
+                // vc->libavcodec_encoder->level = 40; // 4.0
                 LOGGER_WARNING(log, "switching H264 encoder profile ... HIGH");
 
             } else {
-                av_opt_set(vc->h264_encoder2->priv_data, "profile", "baseline", 0);
-                vc->h264_encoder2->profile               = FF_PROFILE_H264_BASELINE; // FF_PROFILE_H264_HIGH;
-                // av_opt_set(vc->h264_encoder2->priv_data, "level", "4.0", AV_OPT_SEARCH_CHILDREN);
-                // vc->h264_encoder2->level = 40; // 4.0
+                av_opt_set(vc->libavcodec_encoder->priv_data, "profile", "baseline", 0);
+                vc->libavcodec_encoder->profile               = FF_PROFILE_H264_BASELINE; // FF_PROFILE_H264_HIGH;
+                // av_opt_set(vc->libavcodec_encoder->priv_data, "level", "4.0", AV_OPT_SEARCH_CHILDREN);
+                // vc->libavcodec_encoder->level = 40; // 4.0
                 LOGGER_WARNING(log, "switching H264 encoder profile ... baseline");
             }
 
-            av_opt_set(vc->h264_encoder2->priv_data, "annex_b", "1", 0);
-            av_opt_set(vc->h264_encoder2->priv_data, "repeat_headers", "1", 0);
-            av_opt_set(vc->h264_encoder2->priv_data, "tune", "zerolatency", 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "b", bit_rate, 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "bitrate", bit_rate, 0);
-            // av_opt_set_int(vc->h264_encoder2->priv_data, "minrate", bit_rate, 0);
-            // av_opt_set_int(vc->h264_encoder2->priv_data, "maxrate", (int)((float)bit_rate * H264_ENCODE_MAX_BITRATE_OVER_ALLOW), 0);
+            av_opt_set(vc->libavcodec_encoder->priv_data, "annex_b", "1", 0);
+            av_opt_set(vc->libavcodec_encoder->priv_data, "repeat_headers", "1", 0);
+            av_opt_set(vc->libavcodec_encoder->priv_data, "tune", "zerolatency", 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "b", bit_rate, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "bitrate", bit_rate, 0);
+            // av_opt_set_int(vc->libavcodec_encoder->priv_data, "minrate", bit_rate, 0);
+            // av_opt_set_int(vc->libavcodec_encoder->priv_data, "maxrate", (int)((float)bit_rate * H264_ENCODE_MAX_BITRATE_OVER_ALLOW), 0);
 
-            av_opt_set_int(vc->h264_encoder2->priv_data, "cbr", true, 0);
-            av_opt_set(vc->h264_encoder2->priv_data, "rc", "cbr", 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "delay", 0, 0);
-            // av_opt_set_int(vc->h264_encoder2->priv_data, "rc-lookahead", 0, 0);
-            av_opt_set(vc->h264_encoder2->priv_data, "preset", "llhp", 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "bf", 0, 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "qmin", 3, 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "qmax", 51, 0);
-            av_opt_set(vc->h264_encoder2->priv_data, "forced-idr", "true", 0);
-            av_opt_set_int(vc->h264_encoder2->priv_data, "zerolatency", 1, AV_OPT_SEARCH_CHILDREN);
-            //y// av_opt_set_int(vc->h264_encoder2->priv_data, "refs", 1, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "cbr", true, 0);
+            av_opt_set(vc->libavcodec_encoder->priv_data, "rc", "cbr", 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "delay", 0, 0);
+            // av_opt_set_int(vc->libavcodec_encoder->priv_data, "rc-lookahead", 0, 0);
+            av_opt_set(vc->libavcodec_encoder->priv_data, "preset", "llhp", 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "bf", 0, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "qmin", 3, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "qmax", 51, 0);
+            av_opt_set(vc->libavcodec_encoder->priv_data, "forced-idr", "true", 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "zerolatency", 1, AV_OPT_SEARCH_CHILDREN);
+            //y// av_opt_set_int(vc->libavcodec_encoder->priv_data, "refs", 1, 0);
 
-            av_opt_set_int(vc->h264_encoder2->priv_data, "threads", X264_ENCODER_THREADS, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "threads", X264_ENCODER_THREADS, 0);
 
             if (X264_ENCODER_SLICES > 0) {
-                av_opt_set(vc->h264_encoder2->priv_data, "sliced_threads", "1", 0);
+                av_opt_set(vc->libavcodec_encoder->priv_data, "sliced_threads", "1", 0);
             } else {
-                av_opt_set(vc->h264_encoder2->priv_data, "sliced_threads", "0", 0);
+                av_opt_set(vc->libavcodec_encoder->priv_data, "sliced_threads", "0", 0);
             }
 
-            av_opt_set_int(vc->h264_encoder2->priv_data, "slice_count", X264_ENCODER_SLICES, 0);
+            av_opt_set_int(vc->libavcodec_encoder->priv_data, "slice_count", X264_ENCODER_SLICES, 0);
 
             /* put sample parameters */
-            vc->h264_encoder2->bit_rate = bit_rate;
+            vc->libavcodec_encoder->bit_rate = bit_rate;
             vc->h264_enc_bitrate = bit_rate;
 
             /* resolution must be a multiple of two */
-            vc->h264_encoder2->width = width;
-            vc->h264_encoder2->height = height;
+            vc->libavcodec_encoder->width = width;
+            vc->libavcodec_encoder->height = height;
 
-            vc->h264_enc_width = vc->h264_encoder2->width;
-            vc->h264_enc_height = vc->h264_encoder2->height;
+            vc->h264_enc_width = vc->libavcodec_encoder->width;
+            vc->h264_enc_height = vc->libavcodec_encoder->height;
 
-            vc->h264_encoder2->gop_size = VIDEO_MAX_KF_H264;
-            // vc->h264_encoder2->keyint_min = VIDEO_MAX_KF_H264;
-            vc->h264_encoder2->max_b_frames = 0;
-            vc->h264_encoder2->pix_fmt = AV_PIX_FMT_YUV420P;
+            vc->libavcodec_encoder->gop_size = VIDEO_MAX_KF_H264;
+            // vc->libavcodec_encoder->keyint_min = VIDEO_MAX_KF_H264;
+            vc->libavcodec_encoder->max_b_frames = 0;
+            vc->libavcodec_encoder->pix_fmt = AV_PIX_FMT_YUV420P;
 
-            vc->h264_encoder2->time_base.num = 1;
-            vc->h264_encoder2->time_base.den = 1000;
+            vc->libavcodec_encoder->time_base.num = 1;
+            vc->libavcodec_encoder->time_base.den = 1000;
 
             // without these it won't work !! ---------------------
-            vc->h264_encoder2->time_base = (AVRational) {
+            vc->libavcodec_encoder->time_base = (AVRational) {
                 40, 1000
             };
-            vc->h264_encoder2->framerate = (AVRational) {
+            vc->libavcodec_encoder->framerate = (AVRational) {
                 1000, 40
             };
             // without these it won't work !! ---------------------
@@ -776,12 +533,12 @@ int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
             av_free(val_str);
             */
 
-            // vc->h264_encoder2->flags2 |= AV_CODEC_FLAG2_LOCAL_HEADER;
-            // vc->h264_encoder2->flags2 |= AV_CODEC_FLAG2_FAST;
+            // vc->libavcodec_encoder->flags2 |= AV_CODEC_FLAG2_LOCAL_HEADER;
+            // vc->libavcodec_encoder->flags2 |= AV_CODEC_FLAG2_FAST;
 
             AVDictionary *opts = NULL;
 
-            if (avcodec_open2(vc->h264_encoder2, codec2, NULL) < 0) {
+            if (avcodec_open2(vc->libavcodec_encoder, codec2, NULL) < 0) {
                 LOGGER_ERROR(log, "could not open codec H264 on encoder");
             }
 
@@ -1172,46 +929,46 @@ uint32_t encode_frame_h264(ToxAV *av, uint32_t friend_number, uint16_t width, ui
 #ifdef X264_ENCODE_USED
 
 
-    memcpy(call->video->h264_in_pic.img.plane[0], y, width * height);
-    memcpy(call->video->h264_in_pic.img.plane[1], u, (width / 2) * (height / 2));
-    memcpy(call->video->h264_in_pic.img.plane[2], v, (width / 2) * (height / 2));
+    memcpy(call->video->x264_encoder->in_pic.img.plane[0], y, width * height);
+    memcpy(call->video->x264_encoder->in_pic.img.plane[1], u, (width / 2) * (height / 2));
+    memcpy(call->video->x264_encoder->in_pic.img.plane[2], v, (width / 2) * (height / 2));
 
     int i_nal;
 
-    call->video->h264_in_pic.i_pts = (int64_t)(*video_frame_record_timestamp);
+    call->video->x264_encoder->in_pic.i_pts = (int64_t)(*video_frame_record_timestamp);
 
     if ((vpx_encode_flags & VPX_EFLAG_FORCE_KF) > 0) {
-        call->video->h264_in_pic.i_type = X264_TYPE_IDR; // real full i-frame
+        call->video->x264_encoder->in_pic.i_type = X264_TYPE_IDR; // real full i-frame
         call->video->last_sent_keyframe_ts = current_time_monotonic(av->m->mono_time);
     } else {
-        call->video->h264_in_pic.i_type = X264_TYPE_AUTO;
+        call->video->x264_encoder->in_pic.i_type = X264_TYPE_AUTO;
     }
 
-    LOGGER_DEBUG(av->m->log, "X264 IN frame type=%d", (int)call->video->h264_in_pic.i_type);
+    LOGGER_DEBUG(av->m->log, "X264 IN frame type=%d", (int)call->video->x264_encoder->in_pic.i_type);
 
-    *i_frame_size = x264_encoder_encode(call->video->h264_encoder,
+    *i_frame_size = x264_encoder_encode(call->video->x264_encoder,
                                         nal,
                                         &i_nal,
-                                        &(call->video->h264_in_pic),
-                                        &(call->video->h264_out_pic));
+                                        &(call->video->x264_encoder->in_pic),
+                                        &(call->video->x264_encoder->out_pic));
 
     global_encoder_delay_counter++;
 
     if (global_encoder_delay_counter > 60) {
         global_encoder_delay_counter = 0;
         LOGGER_DEBUG(av->m->log, "enc:delay=%ld",
-                     (long int)(call->video->h264_in_pic.i_pts - (int64_t)call->video->h264_out_pic.i_pts)
+                     (long int)(call->video->x264_encoder->in_pic.i_pts - (int64_t)call->video->x264_encoder->out_pic.i_pts)
                     );
     }
 
 
-    *video_frame_record_timestamp = (uint64_t)call->video->h264_out_pic.i_pts;
+    *video_frame_record_timestamp = (uint64_t)call->video->x264_encoder->out_pic.i_pts;
 
 
 
 
-    if (IS_X264_TYPE_I(call->video->h264_out_pic.i_type)) {
-        LOGGER_DEBUG(av->m->log, "X264 out frame type=%d", (int)call->video->h264_out_pic.i_type);
+    if (IS_X264_TYPE_I(call->video->x264_encoder->out_pic.i_type)) {
+        LOGGER_DEBUG(av->m->log, "X264 out frame type=%d", (int)call->video->x264_encoder->out_pic.i_type);
     }
 
 
@@ -1227,7 +984,7 @@ uint32_t encode_frame_h264(ToxAV *av, uint32_t friend_number, uint16_t width, ui
         // LOGGER_ERROR(av->m->log, "H264: i_frame_size=%d nal_buf=%p KF=%d\n",
         //             (int)*i_frame_size,
         //             (*nal)->p_payload,
-        //             (int)call->video->h264_out_pic.b_keyframe
+        //             (int)call->video->x264_encoder->out_pic.b_keyframe
         //            );
         // -- WARN -- : this could crash !! ----
 
@@ -1255,7 +1012,7 @@ uint32_t encode_frame_h264(ToxAV *av, uint32_t friend_number, uint16_t width, ui
 
     frame = av_frame_alloc();
 
-    frame->format = call->video->h264_encoder2->pix_fmt;
+    frame->format = call->video->libavcodec_encoder->pix_fmt;
     frame->width  = width;
     frame->height = height;
 
@@ -1281,13 +1038,13 @@ uint32_t encode_frame_h264(ToxAV *av, uint32_t friend_number, uint16_t width, ui
     memcpy(frame->data[2], v, (width / 2) * (height / 2));
 
     // encode the frame
-    ret = avcodec_send_frame(call->video->h264_encoder2, frame);
+    ret = avcodec_send_frame(call->video->libavcodec_encoder, frame);
 
     if (ret < 0) {
         LOGGER_ERROR(av->m->log, "Error sending a frame for encoding:ERROR");
     }
 
-    ret = avcodec_receive_packet(call->video->h264_encoder2, call->video->h264_out_pic2);
+    ret = avcodec_receive_packet(call->video->libavcodec_encoder, call->video->x264_encoder->out_pic2);
 
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
         *i_frame_size = 0;
@@ -1296,21 +1053,21 @@ uint32_t encode_frame_h264(ToxAV *av, uint32_t friend_number, uint16_t width, ui
         // fprintf(stderr, "Error during encoding\n");
     } else {
 
-        // printf("Write packet %3"PRId64" (size=%5d)\n", call->video->h264_out_pic2->pts, call->video->h264_out_pic2->size);
-        // fwrite(call->video->h264_out_pic2->data, 1, call->video->h264_out_pic2->size, outfile);
+        // printf("Write packet %3"PRId64" (size=%5d)\n", call->video->x264_encoder->out_pic2->pts, call->video->x264_encoder->out_pic2->size);
+        // fwrite(call->video->x264_encoder->out_pic2->data, 1, call->video->x264_encoder->out_pic2->size, outfile);
 
         global_encoder_delay_counter++;
 
         if (global_encoder_delay_counter > 60) {
             global_encoder_delay_counter = 0;
             LOGGER_DEBUG(av->m->log, "enc:delay=%ld",
-                         (long int)(frame->pts - (int64_t)call->video->h264_out_pic2->pts)
+                         (long int)(frame->pts - (int64_t)call->video->x264_encoder->out_pic2->pts)
                         );
         }
 
 
-        *i_frame_size = call->video->h264_out_pic2->size;
-        *video_frame_record_timestamp = (uint64_t)call->video->h264_out_pic2->pts;
+        *i_frame_size = call->video->x264_encoder->out_pic2->size;
+        *video_frame_record_timestamp = (uint64_t)call->video->x264_encoder->out_pic2->pts;
 
         result = 0;
     }
@@ -1339,9 +1096,9 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
     if (*i_frame_size > 0) {
 
         // use the record timestamp that was actually used for this frame
-        *video_frame_record_timestamp = (uint64_t)call->video->h264_in_pic.i_pts; // TODO: --> is this wrong?
+        *video_frame_record_timestamp = (uint64_t)call->video->x264_encoder->in_pic.i_pts; // TODO: --> is this wrong?
         const uint32_t frame_length_in_bytes = *i_frame_size;
-        const int keyframe = (int)call->video->h264_out_pic.b_keyframe;
+        const int keyframe = (int)call->video->x264_encoder->out_pic.b_keyframe;
 
         // LOGGER_ERROR(av->m->log, "video packet record time[1]: %lu", (*video_frame_record_timestamp));
 
@@ -1378,7 +1135,7 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
 
     if (*i_frame_size > 0) {
 
-        *video_frame_record_timestamp = (uint64_t)call->video->h264_out_pic2->pts;
+        *video_frame_record_timestamp = (uint64_t)call->video->x264_encoder->out_pic2->pts;
         const uint32_t frame_length_in_bytes = *i_frame_size;
         const int keyframe = (int)1;
 
@@ -1393,7 +1150,7 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
         int res = rtp_send_data
                   (
                       call->video_rtp,
-                      (const uint8_t *)(call->video->h264_out_pic2->data),
+                      (const uint8_t *)(call->video->x264_encoder->out_pic2->data),
                       frame_length_in_bytes,
                       keyframe,
                       *video_frame_record_timestamp,
@@ -1408,7 +1165,7 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
         (*video_frame_record_timestamp)++;
 
 
-        av_packet_unref(call->video->h264_out_pic2);
+        av_packet_unref(call->video->x264_encoder->out_pic2);
 
         if (res < 0) {
             LOGGER_WARNING(av->m->log, "Could not send video frame: %s", strerror(errno));
@@ -1427,31 +1184,23 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
 
 }
 
-void vc_kill_h264(VCSession *vc)
+void vc_kill_x264_encode(VCSession *vc)
 {
-    // encoder
 #ifdef X264_ENCODE_USED
 
-    if (vc->h264_encoder) {
-        x264_encoder_close(vc->h264_encoder);
-        x264_picture_clean(&(vc->h264_in_pic));
+    if (vc->x264_encoder) {
+        x264_encoder_close(vc->x264_encoder);
+        x264_picture_clean(&(vc->x264_encoder->in_pic));
     }
 
 #else
     // --- ffmpeg encoder ---
-    av_packet_free(&(vc->h264_out_pic2));
-    avcodec_free_context(&(vc->h264_encoder2));
+    av_packet_free(&(vc->x264_encoder->out_pic2));
+    avcodec_free_context(&(vc->libavcodec_encoder));
     // --- ffmpeg encoder ---
 
 #endif
 
-    // decoder
-    if (vc->h264_decoder->extradata) {
-        free(vc->h264_decoder->extradata);
-        vc->h264_decoder->extradata = NULL;
-    }
-
-    avcodec_free_context(&vc->h264_decoder);
 }
 
 

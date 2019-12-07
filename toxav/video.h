@@ -39,14 +39,17 @@
 #include <vpx/vp8dx.h>
 // for VPX ----------
 
-#ifdef BUILD_X264
+// These shouldnt be here...
+#ifdef USE_X264
 #include <x264.h>
 #endif
 
+#ifdef USE_LIBAVCODEC
 // ffmpeg  ----------
 #include <libavcodec/avcodec.h>
 #include <libavutil/common.h>
 // ffmpeg  ----------
+#endif
 
 #define USE_TS_BUFFER_FOR_VIDEO   1
 
@@ -218,19 +221,14 @@ typedef struct VCSession_s {
     uint32_t frame_counter;
 
 #if USE_X264
-    struct x264 {
-        x264_t *h264_encoder;
-        x264_picture_t h264_in_pic;
-        x264_picture_t h264_out_pic;
-
-    };
-    encoder_t *h264_encoder;
+    struct x264_encoder_t *x264_encoder;
     int h264_enc_width;
     int h264_enc_height;
     uint32_t h264_enc_bitrate;
 #endif // USE_X264
 
-#ifdef USE_FFMPEG
+
+#ifdef USE_LIBAVCODEC
 // ------ ffmpeg encoder ------
     AVCodecContext *h264_encoder2;
     AVPacket *h264_out_pic2;
@@ -239,7 +237,7 @@ typedef struct VCSession_s {
 // ------ ffmpeg decoder ------
     AVCodecContext *h264_decoder;
 // ------ ffmpeg decoder ------
-#endif
+#endif // USE_LIBAVCODEC
 
 #ifdef RASPBERRY_PI_OMX
     struct OMXContext *omx_ctx;

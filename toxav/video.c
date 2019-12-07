@@ -40,6 +40,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <x264.h>
 
 /* activate only for debugging!! */
 // #define DEBUG_SHOW_H264_DECODING_TIME 1

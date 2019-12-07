@@ -40,6 +40,17 @@ AC_ARG_ENABLE([x264],
     ]
 )
 
+USE_LIBAVCODEC="no"
+AC_ARG_ENABLE([libavcodec],
+    [AC_HELP_STRING([--enable-libavcodec], [use ffmpeg video H264 decoder (WARNING: do not enable without a H.264 patent license)]) ],
+    [
+        if test "x$enableval" = "xno"; then
+            USE_LIBAVCODEC="no"
+        elif test "x$enableval" = "xyes"; then
+            USE_LIBAVCODEC="yes"
+        fi
+    ]
+)
 
 NCURSES_FOUND="no"
 LIBCONFIG_FOUND="no"
@@ -538,6 +549,15 @@ if test "x$USE_X264" = "xyes"; then
         ]
     )
 fi
+if test "x$USE_LIBAVCODEC" = "xyes"; then
+    PKG_CHECK_MODULES([LIBAVCODEC], [libavcodec],
+        [],
+        [
+            AC_MSG_WARN([enabling H264 ffmpeg support $LIBAVCODEC_PKG_ERRORS])
+            USE_LIBAVCODEC="yes"
+        ]
+    )
+fi
 
 if test "x$BUILD_AV" = "xyes"; then
     # toxcore lib needs an global?
@@ -631,6 +651,7 @@ AM_CONDITIONAL(BUILD_TESTS, test "x$BUILD_TESTS" = "xyes")
 AM_CONDITIONAL(BUILD_AV, test "x$BUILD_AV" = "xyes")
 AM_CONDITIONAL(ON_RASPI, test "x$ON_RASPI" = "xyes")
 AM_CONDITIONAL(USE_X264, test "x$USE_X264" = "xyes")
+AM_CONDITIONAL(USE_LIBAVCODEC, test "x$USE_LIBAVCODEC" = "xyes")
 AM_CONDITIONAL(BUILD_TESTING, test "x$BUILD_TESTING" = "xyes")
 AM_CONDITIONAL(BUILD_AV_TESTING, test "x$BUILD_AV_TESTING" = "xyes")
 AM_CONDITIONAL(WITH_NACL, test "x$WANT_NACL" = "xyes")

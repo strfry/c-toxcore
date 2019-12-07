@@ -47,6 +47,9 @@ struct vpx_frame_user_data {
 };
 // ----------- COMMON STUFF -----------
 
+
+// TODO: Remove this dependency from generic codec API headers
+#ifndef USE_X264
 // (c) 2019 x264 Project
 /* The data within the payload is already NAL-encapsulated; the ref_idc and type
  * are merely in the struct for easy access by the calling application.
@@ -72,8 +75,12 @@ typedef struct
     int i_padding;
 } h264_nal_t;
 
-
 typedef h264_nal_t x264_nal_t; // HACK
+
+#else
+#endif
+
+
 
 // ----------- VPX  -----------
 VCSession *vc_new_vpx(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,

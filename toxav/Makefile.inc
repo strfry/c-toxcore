@@ -25,21 +25,27 @@ libtoxav_la_SOURCES = ../toxav/rtp.h \
                     ../toxav/dummy_ntp.c \
                     ../toxav/codecs/vpx/codec.c
 
-if ON_RASPI
-
-libtoxav_la_SOURCES += ../toxav/codecs/h264_omx_raspi/codec.c
-endif
-
-if USE_X264
-libtoxav_la_SOURCES += ../toxav/codecs/h264/x264.c
-endif
-
 libtoxav_la_CFLAGS = -I../toxcore \
                     -I../toxav \
                     $(LIBSODIUM_CFLAGS) \
                     $(NACL_CFLAGS) \
                     $(AV_CFLAGS) \
                     $(PTHREAD_CFLAGS)
+
+if ON_RASPI
+libtoxav_la_SOURCES += ../toxav/codecs/h264_omx_raspi/codec.c
+endif
+
+if USE_X264
+libtoxav_la_CFLAGS += -DUSE_X264
+libtoxav_la_SOURCES += ../toxav/codecs/x264/encode.c
+endif
+
+if USE_LIBAVCODEC
+libtoxav_la_CFLAGS += -DUSE_LIBAVCODEC
+libtoxav_la_SOURCES += ../toxav/codecs/libavcodec/decode.c
+#libtoxav_la_SOURCES += ../toxav/codecs/libavcodec/encode.c
+endif
 
 libtoxav_la_LDFLAGS = $(LT_LDFLAGS) \
                     $(LIBSODIUM_LDFLAGS) \
