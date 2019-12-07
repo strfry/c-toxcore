@@ -183,13 +183,14 @@ VCSession *vc_new(Mono_Time *mono_time, const Logger *log, ToxAV *av, uint32_t f
 
     // HINT: initialize the H264 encoder
 
-
+#ifdef HAS_H264
 #ifdef RASPBERRY_PI_OMX
     LOGGER_WARNING(log, "OMX:002");
     vc = vc_new_h264_omx_raspi(log, av, friend_number, cb, cb_data, vc);
     LOGGER_WARNING(log, "OMX:003");
 #else
     vc = vc_new_h264(log, av, friend_number, cb, cb_data, vc);
+#endif
 #endif
 
     // HINT: initialize VP8 encoder
@@ -217,10 +218,12 @@ void vc_kill(VCSession *vc)
         return;
     }
 
+#ifdef HAS_H264
 #ifdef RASPBERRY_PI_OMX
     vc_kill_h264_omx_raspi(vc);
 #else
     vc_kill_h264(vc);
+#endif
 #endif
     vc_kill_vpx(vc);
 
@@ -802,6 +805,7 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
                              &ret_value);
         } else {
             // LOGGER_ERROR(vc->log, "DEC:H264------------");
+#ifdef HAS_264
 #ifdef RASPBERRY_PI_OMX
             decode_frame_h264_omx_raspi(vc, m, skip_video_flag, a_r_timestamp,
                                         a_l_timestamp,
@@ -830,6 +834,9 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
 
 #endif
 
+#endif
+#else
+            LOGGER_ERROR(vc->log, "DEC: CANT DECODE H264----");
 #endif
         }
 
@@ -1098,9 +1105,10 @@ int vc_reconfigure_encoder(Logger *log, VCSession *vc, uint32_t bit_rate, uint16
     } else {
 #ifdef RASPBERRY_PI_OMX
         return vc_reconfigure_encoder_h264_omx_raspi(log, vc, bit_rate, width, height, kf_max_dist);
-#else
+#elif defined(HAS_264)
         return vc_reconfigure_encoder_h264(log, vc, bit_rate, width, height, kf_max_dist);
 #endif
+        return -1;
     }
 }
 

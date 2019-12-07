@@ -1669,13 +1669,16 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
                               vpx_encode_flags,
                               &nal,
                               &i_frame_size);
-#else
+#elif defined(HAS_264)
             uint32_t result = encode_frame_h264(av, friend_number, width, height,
                                                 y, u, v, call,
                                                 &video_frame_record_timestamp,
                                                 vpx_encode_flags,
                                                 &nal,
                                                 &i_frame_size);
+#else
+            LOGGER_DEBUG(av->m->log, "**##** =~~~~= DUMMY =~~~~= **##**");
+            uint32_t result = 0; // ???
 #endif
 
             if (result != 0) {
@@ -1710,9 +1713,9 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
                 pthread_mutex_unlock(call->mutex_video);
                 goto END;
             }
-
         } else {
             // HINT: H264
+#ifdef HAS_264
 #ifdef RASPBERRY_PI_OMX
             uint32_t result = send_frames_h264_omx_raspi(av, friend_number, width, height,
                               y, u, v, call,
@@ -1731,7 +1734,9 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
                                                &i_frame_size,
                                                &rc);
 #endif
-
+#else   
+            uint32_t result = -1; // ???
+#endif
             if (result != 0) {
                 pthread_mutex_unlock(call->mutex_video);
                 goto END;

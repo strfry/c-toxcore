@@ -17,6 +17,8 @@
  * along with Tox.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <x264.h>
+
 #include "../../audio.h"
 #include "../../video.h"
 #include "../../msi.h"
@@ -66,38 +68,6 @@ int global_h264_enc_profile_high_enabled_switch = 0;
  */
 
 
-#ifdef HW_CODEC_CONFIG_TRIFA
-/* ---------------------------------------------------
- * TRIfA
- */
-#undef ACTIVE_HW_CODEC_CONFIG_NAME
-#undef H264_WANT_ENCODER_NAME
-#undef H264_WANT_DECODER_NAME
-#undef X264_ENCODE_USED
-#undef RAPI_HWACCEL_ENC
-#undef RAPI_HWACCEL_DEC
-#undef H264_DECODER_THREADS
-#undef H264_DECODER_THREAD_FRAME_ACTIVE
-#undef X264_ENCODER_THREADS
-#undef X264_ENCODER_SLICES
-#undef H264_ENCODER_STARTWITH_PROFILE_HIGH
-// --
-#define ACTIVE_HW_CODEC_CONFIG_NAME "HW_CODEC_CONFIG_TRIFA"
-// #define _TRIFA_CODEC_DECODER_ 1
-// #define H264_WANT_DECODER_NAME "h264_mediacodec"
-#define H264_WANT_DECODER_NAME "h264"
-#define X264_ENCODE_USED 1
-// #define RAPI_HWACCEL_DEC 1
-#define H264_DECODER_THREADS 3
-#define H264_DECODER_THREAD_FRAME_ACTIVE 0
-#define X264_ENCODER_THREADS 3
-#define X264_ENCODER_SLICES 3
-#define H264_ENCODER_STARTWITH_PROFILE_HIGH 0
-/* ---------------------------------------------------
- * TRIfA
- */
-#endif
-
 #ifdef HW_CODEC_CONFIG_RPI3_TBW_BIDI
 /* ---------------------------------------------------
  * RPI3 tbw-bidi
@@ -130,133 +100,6 @@ int global_h264_enc_profile_high_enabled_switch = 0;
  */
 #endif
 
-#ifdef HW_CODEC_CONFIG_RPI3_TBW_TV
-/* ---------------------------------------------------
- * RPI3 tbw-TV
- */
-#undef ACTIVE_HW_CODEC_CONFIG_NAME
-#undef H264_WANT_ENCODER_NAME
-#undef H264_WANT_DECODER_NAME
-#undef X264_ENCODE_USED
-#undef RAPI_HWACCEL_ENC
-#undef RAPI_HWACCEL_DEC
-#undef H264_DECODER_THREADS
-#undef H264_DECODER_THREAD_FRAME_ACTIVE
-#undef X264_ENCODER_THREADS
-#undef X264_ENCODER_SLICES
-#undef H264_ENCODER_STARTWITH_PROFILE_HIGH
-// --
-#define ACTIVE_HW_CODEC_CONFIG_NAME "HW_CODEC_CONFIG_RPI3_TBW_TV"
-#define H264_WANT_DECODER_NAME "h264_mmal"
-//#define H264_WANT_DECODER_NAME "h264"
-#define X264_ENCODE_USED 1
-#define RAPI_HWACCEL_DEC 1
-#define H264_DECODER_THREADS 0
-#define H264_DECODER_THREAD_FRAME_ACTIVE 0
-#define X264_ENCODER_THREADS 0
-#define X264_ENCODER_SLICES 0
-#define H264_ENCODER_STARTWITH_PROFILE_HIGH 0
-/* ---------------------------------------------------
- * RPI3 tbw-TV
- */
-#endif
-
-#ifdef HW_CODEC_CONFIG_UTOX_LINNVENC
-/* ---------------------------------------------------
- * UTOX linux
- */
-#undef ACTIVE_HW_CODEC_CONFIG_NAME
-#undef H264_WANT_ENCODER_NAME
-#undef H264_WANT_DECODER_NAME
-#undef X264_ENCODE_USED
-#undef RAPI_HWACCEL_ENC
-#undef RAPI_HWACCEL_DEC
-#undef H264_DECODER_THREADS
-#undef H264_DECODER_THREAD_FRAME_ACTIVE
-#undef X264_ENCODER_THREADS
-#undef X264_ENCODER_SLICES
-#undef H264_ENCODER_STARTWITH_PROFILE_HIGH
-// --
-#define ACTIVE_HW_CODEC_CONFIG_NAME "HW_CODEC_CONFIG_UTOX_LINNVENC"
-#define H264_WANT_ENCODER_NAME "h264_nvenc"
-#define H264_WANT_DECODER_NAME "h264"
-// #define X264_ENCODE_USED 1
-#define RAPI_HWACCEL_ENC 1
-#define H264_DECODER_THREADS 4
-#define H264_DECODER_THREAD_FRAME_ACTIVE 0
-#define X264_ENCODER_THREADS 4
-#define X264_ENCODER_SLICES 4
-#define H264_ENCODER_STARTWITH_PROFILE_HIGH 1
-/* ---------------------------------------------------
- * UTOX linux
- */
-#endif
-
-#ifdef HW_CODEC_CONFIG_TBW_LINNVENC
-/* ---------------------------------------------------
- * tbw usb linux
- */
-#undef ACTIVE_HW_CODEC_CONFIG_NAME
-#undef H264_WANT_ENCODER_NAME
-#undef H264_WANT_DECODER_NAME
-#undef X264_ENCODE_USED
-#undef RAPI_HWACCEL_ENC
-#undef RAPI_HWACCEL_DEC
-#undef H264_DECODER_THREADS
-#undef H264_DECODER_THREAD_FRAME_ACTIVE
-#undef X264_ENCODER_THREADS
-#undef X264_ENCODER_SLICES
-#undef H264_ENCODER_STARTWITH_PROFILE_HIGH
-// --
-#define ACTIVE_HW_CODEC_CONFIG_NAME "HW_CODEC_CONFIG_TBW_LINNVENC"
-#define H264_WANT_ENCODER_NAME "h264_nvenc"
-#define H264_WANT_DECODER_NAME "h264" // "h264_cuvid"
-// #define X264_ENCODE_USED 1
-#define RAPI_HWACCEL_ENC 1
-// #define RAPI_HWACCEL_DEC 1
-#define H264_DECODER_THREADS 4
-#define H264_DECODER_THREAD_FRAME_ACTIVE 0
-#define X264_ENCODER_THREADS 4
-#define X264_ENCODER_SLICES 4
-#define H264_ENCODER_STARTWITH_PROFILE_HIGH 1
-/* ---------------------------------------------------
- * tbw usb linux
- */
-#endif
-
-#ifdef HW_CODEC_CONFIG_UTOX_WIN7
-/* ---------------------------------------------------
- * UTOX win7
- */
-#undef ACTIVE_HW_CODEC_CONFIG_NAME
-#undef H264_WANT_ENCODER_NAME
-#undef H264_WANT_DECODER_NAME
-#undef X264_ENCODE_USED
-#undef RAPI_HWACCEL_ENC
-#undef RAPI_HWACCEL_DEC
-#undef H264_DECODER_THREADS
-#undef H264_DECODER_THREAD_FRAME_ACTIVE
-#undef X264_ENCODER_THREADS
-#undef X264_ENCODER_SLICES
-#undef H264_ENCODER_STARTWITH_PROFILE_HIGH
-// --
-#define ACTIVE_HW_CODEC_CONFIG_NAME "HW_CODEC_CONFIG_UTOX_WIN7"
-#define H264_WANT_ENCODER_NAME "h264_nvenc"
-#define H264_WANT_DECODER_NAME "h264"
-// #define X264_ENCODE_USED 1
-#define RAPI_HWACCEL_ENC 1
-// #define RAPI_HWACCEL_DEC 1
-#define H264_DECODER_THREADS 2
-#define H264_DECODER_THREAD_FRAME_ACTIVE 1
-#define X264_ENCODER_THREADS 6
-#define X264_ENCODER_SLICES 6
-#define H264_ENCODER_STARTWITH_PROFILE_HIGH 1
-/* ---------------------------------------------------
- * UTOX win7
- */
-#endif
-
-
 #ifdef HW_CODEC_CONFIG_UTOX_UB81
 /* ---------------------------------------------------
  * UTOX win7
@@ -286,25 +129,11 @@ Logger *global__log = NULL;
 void my_log_callback(void *ptr, int level, const char *fmt, va_list vargs)
 {
     LOGGER_WARNING(global__log, fmt, vargs);
-    /*
-        FILE *pFile;
-        pFile=fopen("/sdcard/log.txt", "a");
-        if(pFile==NULL)
-        {
-        }
-        else
-        {
-            fprintf(pFile, fmt, vargs);
-        }
-        fclose(pFile);
-    */
 }
 
 VCSession *vc_new_h264(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
                        VCSession *vc)
 {
-
-
     // ENCODER -------
 
     LOGGER_WARNING(log, "HW CODEC CONFIG ACTIVE: %s", ACTIVE_HW_CODEC_CONFIG_NAME);

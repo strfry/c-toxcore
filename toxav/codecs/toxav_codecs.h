@@ -110,6 +110,57 @@ uint32_t send_frames_vpx(ToxAV *av, uint32_t friend_number, uint16_t width, uint
 
 void vc_kill_vpx(VCSession *vc);
 
+struct encoder_t;
+struct encoder_callbacks_t {
+    
+};
+
+
+
+// ----------- GENERIC  -----------
+typedef VCSession *vcs_new_t(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
+                       VCSession *vc);
+
+typedef int vc_reconfigure_encoder_h(Logger *log, VCSession *vc, uint32_t bit_rate,
+                                uint16_t width, uint16_t height,
+                                int16_t kf_max_dist);
+
+
+typedef int vc_reconfigure_decoder_h(Logger *log, VCSession *vc, uint32_t bit_rate,
+                                uint16_t width, uint16_t height,
+                                int16_t kf_max_dist, void* spspps);
+
+typedef void decode_frame_h(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_t *a_r_timestamp,
+                       uint64_t *a_l_timestamp,
+                       uint64_t *v_r_timestamp, uint64_t *v_l_timestamp,
+                       const struct RTPHeader *header_v3,
+                       struct RTPMessage *p, vpx_codec_err_t rc,
+                       uint32_t full_data_len,
+                       uint8_t *ret_value);
+
+// update_h
+typedef uint32_t encode_frame_h(ToxAV *av, uint32_t friend_number, uint16_t width, uint16_t height,
+                           const uint8_t *y,
+                           const uint8_t *u, const uint8_t *v, ToxAVCall *call,
+                           uint64_t *video_frame_record_timestamp,
+                           int vpx_encode_flags,
+                           x264_nal_t **nal,
+                           int *i_frame_size);
+
+// rtp_send callback ?? 
+uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uint16_t height,
+                          const uint8_t *y,
+                          const uint8_t *u, const uint8_t *v, ToxAVCall *call,
+                          uint64_t *video_frame_record_timestamp,
+                          int vpx_encode_flags,
+                          x264_nal_t **nal,
+                          int *i_frame_size,
+                          TOXAV_ERR_SEND_FRAME *rc);
+
+// destructor
+void vcs_destroy(VCSession *vc);
+
+
 
 // ----------- H264 -----------
 VCSession *vc_new_h264(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
