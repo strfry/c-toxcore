@@ -49,6 +49,11 @@ testing/data
 *.so
 
 # Misc (?)
+m4/*
+configure
+configure_aux
+!m4/pkg.m4
+aclocal.m4
 config.h*
 config.log
 config.status
@@ -63,6 +68,9 @@ build/
 #kdevelop
 .kdev/
 *.kdev*
+
+# VScode
+.vscode/
 
 # Netbeans
 nbproject
@@ -80,3 +88,5 @@ cscope.files
 # rpm
 tox.spec
 
+# reasons
+.gitignore
