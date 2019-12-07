@@ -51,7 +51,7 @@ if BUILD_AV_TESTING
 
 noinst_PROGRAMS +=      av_test
 
-av_test_SOURCES =       ../testing/av_test.c
+av_test_SOURCES =       ../testing/av_test.cpp
 
 av_test_CFLAGS = $(LIBSODIUM_CFLAGS) \
                         $(NACL_CFLAGS) \

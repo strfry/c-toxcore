@@ -294,6 +294,15 @@ if test "x$ac_cv_prog_cc_c99" = "xno" ; then
     AC_MSG_ERROR([c-toxcore requires a C99 compatible compiler])
 fi
 
+if test "x$BUILD_AV_TESTING" = "xyes"; then
+    # av_test.cpp needs OpenCV2/C++
+    AC_PROG_CXX
+  if test "x$ac_cv_prog_cxx" = "xno" ; then
+      AC_MSG_ERROR([AV testing requires a C++ compiler. Disabling AV testing])
+  fi
+fi
+
+
 AM_PROG_CC_C_O
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 AC_LIBTOOL_WIN32_DLL
@@ -554,8 +563,15 @@ if test "x$BUILD_AV" = "xyes"; then
                     BUILD_AV_TESTING="no"
                 ]
             )
+            PKG_CHECK_MODULES([OPENCV], [opencv],
+                [],
+                [
+                    AC_MSG_WARN([disabling AV testing $OPENCV_PKG_ERRORS])
+                    BUILD_AV_TESTING="no"
+                ]
+            )
         fi
-        AV_TESTING_LIBS="$PORTAUDIO_LIBS $SNDFILE_LIBS"
+        AV_TESTING_LIBS="$PORTAUDIO_LIBS $SNDFILE_LIBS $OPENCV_LIBS"
         AC_SUBST(AV_TESTING_LIBS)
     fi
 fi

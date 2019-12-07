@@ -62,7 +62,7 @@ extern "C" {
 /* Reading and Displaying video data */
 #include <opencv/cv.h>
 #include <opencv/cvwimage.h>
-#include <opencv/highgui.h>
+#include <opencv2/highgui.hpp>
 
 /* Previously #ifdef APPLE, seems a bit strange outside of `pkg-config --cflags opencv` -I path */
 #include <opencv2/videoio/videoio_c.h>
