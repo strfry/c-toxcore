@@ -184,14 +184,13 @@ VCSession *vc_new(Mono_Time *mono_time, const Logger *log, ToxAV *av, uint32_t f
 
     // HINT: initialize the H264 encoder
 
-#ifdef HAS_H264
-#ifdef RASPBERRY_PI_OMX
-    LOGGER_WARNING(log, "OMX:002");
-    vc = vc_new_h264_omx_raspi(log, av, friend_number, cb, cb_data, vc);
-    LOGGER_WARNING(log, "OMX:003");
-#else
-    vc = vc_new_h264(log, av, friend_number, cb, cb_data, vc);
+#ifdef USE_X264
+    vc = vc_new_x264_encoder(log, av, friend_number, cb, cb_data, vc);
 #endif
+
+    // HINT: initialize the H264 decoder
+#ifdef USE_LIBAVCODEC
+    vc = vc_new_libavcodec_decoder(log, av, friend_number, cb, cb_data, vc);
 #endif
 
     // HINT: initialize VP8 encoder
