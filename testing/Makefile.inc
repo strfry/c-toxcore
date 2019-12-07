@@ -62,11 +62,13 @@ av_test_LDADD =  $(LIBSODIUM_LDFLAGS) \
                         $(NACL_LDFLAGS) \
                         libmisc_tools.la \
                         libtoxcore.la \
+                        libtoxav.la \
                         $(LIBSODIUM_LIBS) \
                         $(NACL_OBJECTS) \
                         $(NACL_LIBS) \
                         $(WINSOCK2_LIBS) \
                         $(SNDFILE_LIBS) \
+                        $(OPENCV_LIBS) \
                         $(PORTAUDIO_LIBS)
 endif
 

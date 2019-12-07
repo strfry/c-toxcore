@@ -63,9 +63,9 @@ extern "C" {
 #include <opencv/cv.h>
 #include <opencv/cvwimage.h>
 #include <opencv/highgui.h>
-#ifdef __APPLE__
+
+/* Previously #ifdef APPLE, seems a bit strange outside of `pkg-config --cflags opencv` -I path */
 #include <opencv2/videoio/videoio_c.h>
-#endif
 
 #include <assert.h>
 #include <sched.h>
@@ -130,9 +130,10 @@ static void *pa_write_thread(void *d)
 
     while (Pa_IsStreamActive(adout)) {
         frame *f;
+        uint64_t data_type;
         pthread_mutex_lock(cc->arb_mutex);
 
-        if (rb_read(cc->arb, (void **)&f)) {
+        if (rb_read(cc->arb, (void **)&f, &data_type) ) {
             pthread_mutex_unlock(cc->arb_mutex);
             Pa_WriteStream(adout, f->data, f->size);
             free(f);
@@ -210,7 +211,7 @@ static void t_toxav_receive_audio_frame_cb(ToxAV *av, uint32_t friend_number,
     f->size = sample_count;
 
     pthread_mutex_lock(cc->arb_mutex);
-    free(rb_write(cc->arb, f));
+    free(rb_write(cc->arb, f, 0));
     pthread_mutex_unlock(cc->arb_mutex);
 }
 static void t_toxav_audio_bit_rate_cb(ToxAV *av, uint32_t friend_number,
@@ -719,11 +720,13 @@ CHECK_ARG:
 
         void *f = nullptr;
 
-        while (rb_read(AliceCC.arb, &f)) {
+        uint64_t data_type; // dummy
+
+        while (rb_read(AliceCC.arb, &f, &data_type)) {
             free(f);
         }
 
-        while (rb_read(BobCC.arb, &f)) {
+        while (rb_read(BobCC.arb, &f, &data_type)) {
             free(f);
         }
 
