@@ -232,6 +232,12 @@ static void t_accept_friend_request_cb(Tox *m, const uint8_t *public_key, const 
     }
 }
 
+static void log_to_stderr(Tox *tox, TOX_LOG_LEVEL level, const char *file, uint32_t line, const char *func,
+                        const char *message, void *user_data) 
+{
+    fprintf(stdout, "%d %s\n", level, message);
+}
+
 /**
  */
 static void initialize_tox(Tox **bootstrap, ToxAV **AliceAV, CallControl *AliceCC, ToxAV **BobAV, CallControl *BobCC)
@@ -244,6 +250,8 @@ static void initialize_tox(Tox **bootstrap, ToxAV **AliceAV, CallControl *AliceC
 
     tox_options_set_end_port(opts, 0);
     tox_options_set_ipv6_enabled(opts, false);
+    tox_options_set_log_callback(opts, log_to_stderr);
+
 
     {
         Tox_Err_New error;
