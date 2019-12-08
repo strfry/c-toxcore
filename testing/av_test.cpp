@@ -1,6 +1,6 @@
 /*
  * Compile with (Linux only; in newly created directory toxcore/dir_name):
- * gcc -o av_test ../toxav/av_test.c ../build/.libs/libtox*.a -lopencv_core \
+ * g++ -o av_test ../toxav/av_test.cpp ../build/.libs/libtox*.a -lopencv_core \
  * -lopencv_highgui -lopencv_imgproc -lsndfile -pthread -lvpx -lopus -lsodium -lportaudio
  */
 
