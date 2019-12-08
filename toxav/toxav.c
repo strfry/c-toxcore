@@ -1470,7 +1470,7 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
         }
     } else {
         // HINT: H264
-        if (vc_reconfigure_encoder(av->m->log, call->video, call->video_bit_rate * 1000,
+        if (vc_reconfigure_x264_encoder(av->m->log, call->video, call->video_bit_rate * 1000,
                                    width, height, force_reinit_encoder) != 0) {
             pthread_mutex_unlock(call->mutex_video);
             rc = TOXAV_ERR_SEND_FRAME_INVALID;
@@ -1669,8 +1669,8 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
                               vpx_encode_flags,
                               &nal,
                               &i_frame_size);
-#elif defined(HAS_264)
-            uint32_t result = encode_frame_h264(av, friend_number, width, height,
+#elif defined(USE_X264)
+            uint32_t result = encode_frame_x264(av, friend_number, width, height,
                                                 y, u, v, call,
                                                 &video_frame_record_timestamp,
                                                 vpx_encode_flags,
@@ -1715,7 +1715,6 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
             }
         } else {
             // HINT: H264
-#ifdef HAS_264
 #ifdef RASPBERRY_PI_OMX
             uint32_t result = send_frames_h264_omx_raspi(av, friend_number, width, height,
                               y, u, v, call,
@@ -1733,9 +1732,6 @@ bool toxav_video_send_frame(ToxAV *av, uint32_t friend_number, uint16_t width, u
                                                &nal,
                                                &i_frame_size,
                                                &rc);
-#endif
-#else   
-            uint32_t result = -1; // ???
 #endif
             if (result != 0) {
                 pthread_mutex_unlock(call->mutex_video);

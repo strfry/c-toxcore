@@ -170,14 +170,18 @@ void vcs_destroy(VCSession *vc);
 
 
 // ----------- H264 -----------
-VCSession *vc_new_h264(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
+VCSession *vc_new_x264_encoder(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
                        VCSession *vc);
 
-int vc_reconfigure_encoder_h264(Logger *log, VCSession *vc, uint32_t bit_rate,
+VCSession *vc_new_libavcodec_decoder(Logger *log, ToxAV *av, uint32_t friend_number, toxav_video_receive_frame_cb *cb, void *cb_data,
+                       VCSession *vc);
+
+int vc_reconfigure_encoder_x264(Logger *log, VCSession *vc, uint32_t bit_rate,
                                 uint16_t width, uint16_t height,
                                 int16_t kf_max_dist);
 
-void decode_frame_h264(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_t *a_r_timestamp,
+void vc_decode_frame_h264_libavcodec(
+                       VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_t *a_r_timestamp,
                        uint64_t *a_l_timestamp,
                        uint64_t *v_r_timestamp, uint64_t *v_l_timestamp,
                        const struct RTPHeader *header_v3,
@@ -185,7 +189,7 @@ void decode_frame_h264(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uin
                        uint32_t full_data_len,
                        uint8_t *ret_value);
 
-uint32_t encode_frame_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uint16_t height,
+uint32_t encode_frame_x264(ToxAV *av, uint32_t friend_number, uint16_t width, uint16_t height,
                            const uint8_t *y,
                            const uint8_t *u, const uint8_t *v, ToxAVCall *call,
                            uint64_t *video_frame_record_timestamp,
@@ -202,7 +206,8 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
                           int *i_frame_size,
                           TOXAV_ERR_SEND_FRAME *rc);
 
-void vc_kill_h264(VCSession *vc);
+void vc_kill_x264(VCSession *vc);
+void vc_kill_libavcodec_decode(VCSession *vc);
 
 
 

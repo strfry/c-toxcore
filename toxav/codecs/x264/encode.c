@@ -175,7 +175,7 @@ VCSession *vc_new_x264_encoder(Logger *log, ToxAV *av, uint32_t friend_number, t
     // vc->x264_encoder->in_pic.img.plane[1] --> U
     // vc->x264_encoder->in_pic.img.plane[2] --> V
 
-    vc->x264_encoder = x264_encoder_open(&param);
+    vc->x264_encoder->h264_encoder  = x264_encoder_open(&param);
 
     return vc;
 }
@@ -207,7 +207,7 @@ int vc_reconfigure_x264_encoder(Logger *log, VCSession *vc, uint32_t bit_rate,
         if (vc->x264_encoder) {
 
             x264_param_t param;
-            x264_encoder_parameters(vc->x264_encoder, &param);
+            x264_encoder_parameters(vc->x264_encoder->h264_encoder, &param);
 
             LOGGER_DEBUG(log, "vc_reconfigure_encoder_h264:vb=%d [bitrate only]", (int)(bit_rate / 1000));
 
@@ -218,7 +218,7 @@ int vc_reconfigure_x264_encoder(Logger *log, VCSession *vc, uint32_t bit_rate,
             // param.rc.i_bitrate = (bit_rate / 1000) * VIDEO_BITRATE_FACTOR_H264;
             vc->h264_enc_bitrate = bit_rate;
 
-            int res = x264_encoder_reconfig(vc->x264_encoder, &param);
+            int res = x264_encoder_reconfig(vc->x264_encoder->h264_encoder, &param);
         } else {
 
         }
@@ -328,7 +328,7 @@ int vc_reconfigure_x264_encoder(Logger *log, VCSession *vc, uint32_t bit_rate,
                              (int)bit_rate);
 
                 // free old stuff ---------
-                x264_encoder_close(vc->x264_encoder);
+                x264_encoder_close(vc->x264_encoder->h264_encoder);
                 x264_picture_clean(&(vc->x264_encoder->in_pic));
                 // free old stuff ---------
 
@@ -337,7 +337,7 @@ int vc_reconfigure_x264_encoder(Logger *log, VCSession *vc, uint32_t bit_rate,
                     // goto fail;
                 }
 
-                vc->x264_encoder = x264_encoder_open(&param);
+                vc->x264_encoder->h264_encoder = x264_encoder_open(&param);
                 // alloc with new values -------
 
                 vc->video_rc_max_quantizer_prev = vc->video_rc_max_quantizer;
@@ -447,7 +447,7 @@ uint32_t encode_frame_x264(ToxAV *av, uint32_t friend_number, uint16_t width, ui
 
     LOGGER_DEBUG(av->m->log, "X264 IN frame type=%d", (int)call->video->x264_encoder->in_pic.i_type);
 
-    *i_frame_size = x264_encoder_encode(call->video->x264_encoder,
+    *i_frame_size = x264_encoder_encode(call->video->x264_encoder->h264_encoder,
                                         nal,
                                         &i_nal,
                                         &(call->video->x264_encoder->in_pic),
@@ -610,10 +610,10 @@ uint32_t send_frames_h264(ToxAV *av, uint32_t friend_number, uint16_t width, uin
 
 }
 
-void vc_kill_x264_encode(VCSession *vc)
+void vc_kill_x264(VCSession *vc)
 {
     if (vc->x264_encoder) {
-        x264_encoder_close(vc->x264_encoder);
+        x264_encoder_close(vc->x264_encoder->h264_encoder);
         x264_picture_clean(&(vc->x264_encoder->in_pic));
     }
     free(vc->x264_encoder);

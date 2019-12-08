@@ -185,12 +185,12 @@ VCSession *vc_new(Mono_Time *mono_time, const Logger *log, ToxAV *av, uint32_t f
     // HINT: initialize the H264 encoder
 
 #ifdef USE_X264
-    vc = vc_new_x264_encoder(log, av, friend_number, cb, cb_data, vc);
+    /*vc = */vc_new_x264_encoder(log, av, friend_number, cb, cb_data, vc);
 #endif
 
     // HINT: initialize the H264 decoder
 #ifdef USE_LIBAVCODEC
-    vc = vc_new_libavcodec_decoder(log, av, friend_number, cb, cb_data, vc);
+    /*vc = */vc_new_libavcodec_decoder(log, av, friend_number, cb, cb_data, vc);
 #endif
 
     // HINT: initialize VP8 encoder
@@ -218,12 +218,16 @@ void vc_kill(VCSession *vc)
         return;
     }
 
-#ifdef HAS_H264
 #ifdef RASPBERRY_PI_OMX
     vc_kill_h264_omx_raspi(vc);
-#else
-    vc_kill_h264(vc);
 #endif
+
+#ifdef USE_X264
+    vc_kill_x264(vc);
+#endif
+
+#ifdef USE_LIBAVCODEC;
+    vc_kill_libavcodec_decode(vc);
 #endif
     vc_kill_vpx(vc);
 
@@ -607,11 +611,9 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
                 LOGGER_DEBUG(vc->log, "missing %d video frames (m1)", (int)missing_frames_count);
 #endif
 
-#ifdef HAS_H264
                 if (vc->video_decoder_codec_used != TOXAV_ENCODER_CODEC_USED_H264) {
                     rc = vpx_codec_decode(vc->decoder, NULL, 0, NULL, VPX_DL_REALTIME);
                 }
-#endif // HAS_H264
 
                 // HINT: give feedback that we lost some bytes (based on the size of this frame)
                 bwc_add_lost_v3(bwc, (uint32_t)(header_v3_0->data_length_full * missing_frames_count), true);
@@ -633,14 +635,9 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
                 free(p);
                 LOGGER_ERROR(vc->log, "skipping incoming video frame (1)");
 
-#ifdef HAS_H264
                 if (vc->video_decoder_codec_used != TOXAV_ENCODER_CODEC_USED_H264) {
-#endif // HAS_H264
                     rc = vpx_codec_decode(vc->decoder, NULL, 0, NULL, VPX_DL_REALTIME);
-#ifdef HAS_H264
                 }
-#endif
-
 
                 // HINT: give feedback that we lost some bytes (based on the size of this frame)
                 bwc_add_lost_v3(bwc, header_v3_0->data_length_full, false);
@@ -805,7 +802,7 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
                              &ret_value);
         } else {
             // LOGGER_ERROR(vc->log, "DEC:H264------------");
-#ifdef HAS_264
+
 #ifdef RASPBERRY_PI_OMX
             decode_frame_h264_omx_raspi(vc, m, skip_video_flag, a_r_timestamp,
                                         a_l_timestamp,
@@ -818,7 +815,7 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
 #ifdef DEBUG_SHOW_H264_DECODING_TIME
             uint32_t start_time_ms = current_time_monotonic(m->mono_time);
 #endif
-            decode_frame_h264(vc, m, skip_video_flag, a_r_timestamp,
+            vc_decode_frame_h264_libavcodec(vc, m, skip_video_flag, a_r_timestamp,
                               a_l_timestamp,
                               v_r_timestamp, v_l_timestamp,
                               header_v3, p,
@@ -834,9 +831,6 @@ uint8_t vc_iterate(VCSession *vc, Messenger *m, uint8_t skip_video_flag, uint64_
 
 #endif
 
-#endif
-#else
-            LOGGER_ERROR(vc->log, "DEC: CANT DECODE H264----");
 #endif
         }
 
@@ -1100,13 +1094,15 @@ int vc_queue_message(Mono_Time *mono_time, void *vcp, struct RTPMessage *msg)
 int vc_reconfigure_encoder(Logger *log, VCSession *vc, uint32_t bit_rate, uint16_t width, uint16_t height,
                            int16_t kf_max_dist)
 {
+    LOGGER_DEBUG(vc->log, "reconfiguring encoder to %dx%d at %d bits/s", width, height, bit_rate);
+
     if (vc->video_encoder_coded_used == TOXAV_ENCODER_CODEC_USED_VP8) {
         return vc_reconfigure_encoder_vpx(log, vc, bit_rate, width, height, kf_max_dist);
     } else {
 #ifdef RASPBERRY_PI_OMX
         return vc_reconfigure_encoder_h264_omx_raspi(log, vc, bit_rate, width, height, kf_max_dist);
-#elif defined(HAS_264)
-        return vc_reconfigure_encoder_h264(log, vc, bit_rate, width, height, kf_max_dist);
+#elif defined(USE_X264)
+        return vc_reconfigure_x264_encoder(log, vc, bit_rate, width, height, kf_max_dist);
 #endif
         return -1;
     }
