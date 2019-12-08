@@ -242,3 +242,6 @@ EXTRA_DIST += \
 	$(top_srcdir)/auto_tests/data/save.tox \
 	$(top_srcdir)/auto_tests/check_compat.h \
 	$(top_srcdir)/auto_tests/run_auto_test.h
+
+# noinst_PROGRAMS +=     $(TESTS)
+
