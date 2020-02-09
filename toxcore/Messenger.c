@@ -1805,6 +1805,8 @@ int m_msi_packet(const Messenger *m, int32_t friendnumber, const uint8_t *data, 
     return write_cryptpacket_id(m, friendnumber, PACKET_ID_MSI, data, length, 0);
 }
 
+#define BUILD_AV 0
+
 static int m_handle_lossy_packet(void *object, int friend_num, const uint8_t *packet, uint16_t length,
                                  void *userdata)
 {
@@ -1814,7 +1816,7 @@ static int m_handle_lossy_packet(void *object, int friend_num, const uint8_t *pa
         return 1;
     }
 
-    if (packet[0] <= PACKET_ID_RANGE_LOSSY_AV_END) {
+    if (packet[0] <= PACKET_ID_RANGE_LOSSY_AV_END && BUILD_AV) {
         const RTP_Packet_Handler *const ph =
             &m->friendlist[friend_num].lossy_rtp_packethandlers[packet[0] % PACKET_ID_RANGE_LOSSY_AV_SIZE];
 
@@ -1872,7 +1874,7 @@ int m_send_custom_lossy_packet(const Messenger *m, int32_t friendnumber, const u
     }
 
     // TODO(oxij): send_lossy_cryptpacket makes this check already, similarly for other similar places
-    if (data[0] < PACKET_ID_RANGE_LOSSY_START || data[0] > PACKET_ID_RANGE_LOSSY_END) {
+    if (BUILD_AV && data[0] < PACKET_ID_RANGE_LOSSY_START || data[0] > PACKET_ID_RANGE_LOSSY_END) {
         return -3;
     }
 
@@ -1897,7 +1899,7 @@ static int handle_custom_lossless_packet(void *object, int friend_num, const uin
         return -1;
     }
 
-    if (packet[0] < PACKET_ID_RANGE_LOSSLESS_CUSTOM_START || packet[0] > PACKET_ID_RANGE_LOSSLESS_CUSTOM_END) {
+    if (BUILD_AV && (packet[0] < PACKET_ID_RANGE_LOSSLESS_CUSTOM_START || packet[0] > PACKET_ID_RANGE_LOSSLESS_CUSTOM_END)) {
         return -1;
     }
 
